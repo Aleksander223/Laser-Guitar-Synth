@@ -51,4 +51,9 @@ LPF Circuit (low pass filter of RC type, will filter frequencies above 7650Hz, a
 
 If you don't have these components on hand, you can calculate something similar for the noise filters with http://sim.okawa-denshi.jp/en/CRtool.php
 
+## Schematics
+
+High pass filter and low pass filter
+[HPF + LPF](https://i.imgur.com/6TGlQsl.png)
+
 ## Final assembly

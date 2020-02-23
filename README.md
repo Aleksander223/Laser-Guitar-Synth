@@ -54,6 +54,6 @@ If you don't have these components on hand, you can calculate something similar 
 ## Schematics
 
 High pass filter and low pass filter
-[HPF + LPF](https://i.imgur.com/6TGlQsl.png)
+![HPF + LPF](https://i.imgur.com/6TGlQsl.png)
 
 ## Final assembly

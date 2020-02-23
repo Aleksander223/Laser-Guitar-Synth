@@ -24,5 +24,31 @@ The strings are laser diodes, which are pointed towards photoresistors. If the u
 Like a real guitar, you have to pluck the strings! There are 4 "strings" (which are lasers), and touching one with your finger, activates the associated note. The pitch is controlled with the position of your hand on the neck of the guitar. The farther away it is from the body of the guitar, the lower pitch it will be. The notes are mapped in major chords (meaning that the 4 strings are actually in a Major Arpeggio, allowing for easier playing), the root of which is controlled with the position of your hand on the guitar neck.
 
 ## Materials
+- 3.5 mm Audio Jack
+- Arduino Mega
+- LCD Display
+- Joystick
+- 4 5V Laser Diodes
+- 4 Photoresistors
+- HC-SR04 Distance Sensor or similar
+- Cables (lots of them)
+- Breadboard/prototyping board
+- PAM8403 Amp or similar
+- LPF Circuit
+- HPF Circuit
+- Speaker/headphones (to test your audio output)
+- Screws (mostly M3 or M2)
+- 4 10k Resistors (for photoresistors)
+- 2 100uF Capacitors (for noise filtering on the power rail)
+
+HPF Circuit (high pass filter of RC type, will filter frequencies below 225Hz):
+- 1 6.8k Resistor
+- 1 104nF Capacitor
+
+LPF Circuit (low pass filter of RC type, will filter frequencies above 7650Hz, also called a notch filter):
+- 1 200 Resistor
+- 1 104nF Capacitor
+
+If you don't have these components on hand, you can calculate something similar for the noise filters with http://sim.okawa-denshi.jp/en/CRtool.php
 
 ## Final assembly

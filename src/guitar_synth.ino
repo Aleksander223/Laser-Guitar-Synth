@@ -13,6 +13,7 @@
 #include <tables/sin2048_int8.h>
 #include <tables/cos2048_int8.h>
 #include <tables/square_no_alias_2048_int8.h>
+#include <tables/triangle_hermes_2048_int8.h>
 
 /*
    DEFINES
@@ -40,6 +41,10 @@ const int joySWPin = 3;
 // LASERS
 
 // PHOTORESISTORS
+const int photoResistorPin1 = A10;
+const int photoResistorPin2 = A11;
+const int photoResistorPin3 = A6;
+const int photoResistorPin4 = A7;
 
 // DISTANCE SENSOR
 const int trigPin = 2;
@@ -52,12 +57,16 @@ const int buttonPin2 = 8;
 const int buttonPin3 = 9;
 const int buttonPin4 = 6;
 
-byte ATTACK = 255;
-byte DECAY = 128;
-byte SUSTAIN = 128;
-byte RELEASE = 0;
-byte ATTACK_LEVEL = 64;
-byte DECAY_LEVEL = 16;
+// SOUND PARAMETERS
+
+int ATTACK = 10;
+int DECAY = 128;
+int SUSTAIN = 128;
+int RELEASE = 0;
+int ATTACK_LEVEL = 255;
+int DECAY_LEVEL = 200;
+int octaveShift = 24 ;
+int gain = 255;
 
 /*
    GLOBALS
@@ -70,10 +79,10 @@ int xAxis, yAxis, sw;
    AUDIO
 */
 
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin2(SIN2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin3(SIN2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin4(SIN2048_DATA);
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SQUARE_NO_ALIAS_2048_DATA);
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin2(SQUARE_NO_ALIAS_2048_DATA);
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin3(SQUARE_NO_ALIAS_2048_DATA);
+Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin4(SQUARE_NO_ALIAS_2048_DATA);
 Oscil <SQUARE_NO_ALIAS_2048_NUM_CELLS, AUDIO_RATE> aSquare(SQUARE_NO_ALIAS_2048_DATA);
 Oscil <COS2048_NUM_CELLS, AUDIO_RATE> aCos(COS2048_DATA);
 
@@ -101,7 +110,6 @@ int dist;
 
 
 
-byte gain = 255;
 byte currentGain = 0;
 byte currentGain1 = 0;
 byte currentGain2 = 0;
@@ -122,7 +130,7 @@ int buttonValue4;
 */
 unsigned int cursorPosition = 0;
 bool menuChanged = false;
-const int noLevels = 6;
+const int noLevels = 7;
 
 const char menuStrings[noLevels][16] = {
   "Guitarduino",
@@ -130,16 +138,18 @@ const char menuStrings[noLevels][16] = {
   "Attack",
   "Decay",
   "Sustain",
-  "Release"
+  "Release",
+  "Octave"
 };
 
-byte* menuLevels[noLevels] = {
+int* menuLevels[noLevels] = {
   NULL,
   &gain,
   &ATTACK,
   &DECAY,
   &SUSTAIN,
-  &RELEASE
+  &RELEASE,
+  &octaveShift
 };
 
 unsigned int mozziStartDelay = 100;
@@ -171,7 +181,7 @@ void printMenu() {
 
   lastMenuUpdate = millis();
 
-  env.setTimes(2000, DECAY, SUSTAIN, 255);
+//  env.setTimes(2000, DECAY, SUSTAIN, 255);
 }
 
 bool xDown = true;
@@ -218,6 +228,8 @@ void controlMenu() {
 
 bool noteStopped = true;
 
+
+
 void setup() {
   startMozzi(CONTROL_RATE);
 
@@ -230,11 +242,16 @@ void setup() {
   pinMode(joyYPin, INPUT);
   pinMode(joySWPin, INPUT_PULLUP);
 
+  pinMode(photoResistorPin1, INPUT);
+  pinMode(photoResistorPin2, INPUT);
+  pinMode(photoResistorPin3, INPUT);
+  pinMode(photoResistorPin4, INPUT);
+
   // TESTING ONLY
-  pinMode(buttonPin1, INPUT_PULLUP);
-  pinMode(buttonPin2, INPUT_PULLUP);
-  pinMode(buttonPin3, INPUT_PULLUP);
-  pinMode(buttonPin4, INPUT_PULLUP);
+//  pinMode(buttonPin1, INPUT_PULLUP);
+//  pinMode(buttonPin2, INPUT_PULLUP);
+//  pinMode(buttonPin3, INPUT_PULLUP);
+//  pinMode(buttonPin4, INPUT_PULLUP);
 
   // LCD
   lcd.begin(16, 2);
@@ -249,18 +266,16 @@ void setup() {
   // CALCULATE MIDI -> FREQ
   for (int i = 0; i < 5; i++) {
     for (int j = 0; j < 4; j++) {
-      freqTable[i][j] = mtof(midiTable[i][j] - 16);
+      freqTable[i][j] = mtof(midiTable[i][j] - octaveShift);
     }
   }
 
-  env.setLevels(64, 10, 10, 0);
-  env.setTimes(500, DECAY, 1000, 3000);
+  env.setLevels(64, 52, 50, 0);
+  env.setTimes(50, DECAY, 3000, 300);
 //  env.setReleaseTime(2000);
 //  env.setAttackTime(1000);
 //  env.setSustainTime(500);
 //  env.setReleaseTime(3000);
-
-  Serial.begin(9600);
 }
 
 
@@ -272,44 +287,45 @@ void updateControl() {
   duration = pulseIn(echoPin, HIGH);
   dist = (duration/2) / 29.1;
 
-  Serial.println(dist);
+//  Serial.println(dist);
 
-   buttonValue1 = digitalRead(buttonPin1);
-  buttonValue2 = digitalRead(buttonPin2);
-  buttonValue3 = digitalRead(buttonPin3);
-  buttonValue4 = digitalRead(buttonPin4);
+   buttonValue1 = mozziAnalogRead(photoResistorPin1);
+  buttonValue2 = mozziAnalogRead(photoResistorPin2);
+  buttonValue3 = mozziAnalogRead(photoResistorPin3);
+  buttonValue4 = mozziAnalogRead(photoResistorPin4);
 
   env.update();
 
-  if (!buttonValue1 && noteStopped) {
+  Serial.println(buttonValue3);
+
+  if (buttonValue1 < 850 && noteStopped) {
+    env.noteOn();
+    currentGain = 255;
+    noteStopped = false;
+
+  }
+
+  if (buttonValue2 < 850 && noteStopped) {
     env.noteOn();
     currentGain = 255;
     noteStopped = false;
   }
 
-  if (!buttonValue2 && noteStopped) {
+//  if (buttonValue3 < 850 && noteStopped) {
+//    env.noteOn();
+//    currentGain = 255;
+//    noteStopped = false;
+//  }
+
+  if (buttonValue4 < 600 && noteStopped) {
     env.noteOn();
     currentGain = 255;
     noteStopped = false;
   }
 
-  if (!buttonValue3 && noteStopped) {
-    env.noteOn();
-    currentGain = 255;
-    noteStopped = false;
-  }
-
-  if (!buttonValue4 && noteStopped) {
-    env.noteOn();
-    currentGain = 255;
-    noteStopped = false;
-  }
-
-  if (buttonValue1 && buttonValue2 && buttonValue3 && buttonValue4) {
+  if (buttonValue1 > 850 && buttonValue2 > 850 && buttonValue4 > 600) {
     env.noteOff();
     noteStopped = true;
-
-    
     
    
   }
@@ -327,7 +343,7 @@ void updateControl() {
   
   dist = distAvg.next(dist);
 
-  if (dist <= 4) {
+  if (dist <= 4 && (env.playing() || noteStopped)) {
     // ROOT A4
     aSin.setFreq(freqTable[4][0]);
     aSquare.setFreq(freqTable[0][0]);
@@ -336,7 +352,7 @@ void updateControl() {
     aSin3.setFreq(freqTable[4][2]);
     aSin4.setFreq(freqTable[4][3]);
   }
-  else if (dist <= 7) {
+  else if (dist <= 7 && (env.playing() || noteStopped)) {
     // ROOT B4
     aSin.setFreq(freqTable[3][0]);
     aSquare.setFreq(freqTable[1][0]);
@@ -345,7 +361,7 @@ void updateControl() {
     aSin3.setFreq(freqTable[3][2]);
     aSin4.setFreq(freqTable[3][3]);
   }
-  else if (dist <= 10) {
+  else if (dist <= 10 && (env.playing() || noteStopped)) {
     // ROOT C4
     aSin.setFreq(freqTable[2][0]);
     aSquare.setFreq(freqTable[2][0]);
@@ -354,7 +370,7 @@ void updateControl() {
     aSin3.setFreq(freqTable[2][2]);
     aSin4.setFreq(freqTable[2][3]);
   }
-  else if (dist <= 13) {
+  else if (dist <= 13 && (env.playing() || noteStopped)) {
     // ROOT D4
     aSin.setFreq(freqTable[1][0]);
     aSquare.setFreq(freqTable[3][0]);
@@ -363,7 +379,7 @@ void updateControl() {
     aSin3.setFreq(freqTable[1][2]);
     aSin4.setFreq(freqTable[1][3]);
   }
-  else if (dist <= 16) {
+  else if (dist <= 16 && (env.playing() || noteStopped)) {
     // ROOT E4
     aSin.setFreq(freqTable[0][0]);
     aSquare.setFreq(freqTable[4][0]);
@@ -386,16 +402,16 @@ int updateAudio() {
 
   int currentSample = 0;
 
-  if (!buttonValue1) {
+  if (buttonValue1 < 850) {
     currentSample += aSin.next();
   }
-  else if (!buttonValue2) {
+  else if (buttonValue2 < 850) {
     currentSample += aSin2.next();
   }
-  else if (!buttonValue3) {
+  else if (buttonValue3 < 850) {
     currentSample += aSin3.next();
   }
-  else if (!buttonValue4) {
+  else if (buttonValue4 < 850) {
     currentSample += aSin4.next();
   }
   
@@ -406,37 +422,6 @@ int updateAudio() {
 
 void loop() {
   
-
- 
-  
-    
-//  if (buttonValue1 == LOW) {
-//    currentGain1 = gain;
-//  }
-//
-//  if (buttonValue2 == LOW) {
-//    currentGain2 = gain;
-//  }
-//
-//  if (buttonValue3 == LOW) {
-//    currentGain3 = gain;
-//  }
-//
-//  if (buttonValue4 == LOW) {
-//    currentGain4 = gain;
-//  }
-
-//  if (!digitalRead(buttonPin2)) {
-//    currentGain2 = gain;
-//  }
-//
-//  if (!digitalRead(buttonPin3)) {
-//    currentGain3 = gain;
-//  }
-//
-//  if (!digitalRead(buttonPin4)) {
-//    currentGain4 = gain;
-//  }
 
   controlMenu();
 

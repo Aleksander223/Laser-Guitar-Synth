@@ -2,6 +2,7 @@
 Laser Guitar Synth
 
 ## Video
+![Video](https://www.youtube.com/watch?v=Mv7VVykAYJc)
 
 ## Credits
 Thanks to Luana Pantiru for designing the project and helping me assemble it, Sensorium for the Mozzi Audio Library, Stack Overflow for fixing common bugs, and the teaching assistants for guiding me through.

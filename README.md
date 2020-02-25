@@ -58,3 +58,8 @@ High pass filter and low pass filter
 ![HPF + LPF](https://i.imgur.com/6TGlQsl.png)
 
 ## Final assembly
+![Final Assembly](https://i.imgur.com/HHGaI7z.jpg)
+![Final Assembly](https://i.imgur.com/yYZOuHs.jpg)
+![Final Assembly](https://i.imgur.com/Xo2G1gx.jpg)
+![Final Assembly](https://i.imgur.com/KCVDQjW.jpg)
+

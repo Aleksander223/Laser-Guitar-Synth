@@ -65,7 +65,7 @@ int SUSTAIN = 128;
 int RELEASE = 0;
 int ATTACK_LEVEL = 255;
 int DECAY_LEVEL = 200;
-int octaveShift = 24 ;
+int octaveShift = 48 ;
 int gain = 255;
 
 /*

@@ -10,6 +10,7 @@
    AUDIO INCLUDES
 */
 
+//  These are the used sounds
 #include <tables/sin2048_int8.h>
 #include <tables/cos2048_int8.h>
 #include <tables/square_no_alias_2048_int8.h>
@@ -20,6 +21,17 @@
 */
 
 #define CONTROL_RATE 128
+
+// calibrate these depending on your setup
+#define PHOTORES1_TOLERANCE 850
+#define PHOTORES2_TOLERANCE 850
+#define PHOTORES3_TOLERANCE 850
+#define PHOTORES4_TOLERANCE 850
+#define PITCH_LIMIT1 4
+#define PITCH_LIMIT2 7
+#define PITCH_LIMIT3 10
+#define PITCH_LIMIT4 13
+#define PITCH_LIMIT5 16
 
 /*
    PIN DECLARATIONS
@@ -59,13 +71,16 @@ const int buttonPin4 = 6;
 
 // SOUND PARAMETERS
 
-int ATTACK = 10;
+// modify these to change the sound of your instrument
+int ATTACK = 50;
 int DECAY = 128;
-int SUSTAIN = 128;
-int RELEASE = 0;
-int ATTACK_LEVEL = 255;
-int DECAY_LEVEL = 200;
-int octaveShift = 48 ;
+int SUSTAIN = 3000;
+int RELEASE = 300;
+int ATTACK_LEVEL = 64;
+int DECAY_LEVEL = 52;
+int RELEASE_LEVEL = 0;
+int SUSTAIN_LEVEL = 50;
+int octaveShift = 48;
 int gain = 255;
 
 /*
@@ -79,25 +94,19 @@ int xAxis, yAxis, sw;
    AUDIO
 */
 
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SQUARE_NO_ALIAS_2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin2(SQUARE_NO_ALIAS_2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin3(SQUARE_NO_ALIAS_2048_DATA);
-Oscil <SIN2048_NUM_CELLS, AUDIO_RATE> aSin4(SQUARE_NO_ALIAS_2048_DATA);
-Oscil <SQUARE_NO_ALIAS_2048_NUM_CELLS, AUDIO_RATE> aSquare(SQUARE_NO_ALIAS_2048_DATA);
-Oscil <COS2048_NUM_CELLS, AUDIO_RATE> aCos(COS2048_DATA);
+// oscilator declarations, one for each string
+Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin(SIN2048_DATA);
+Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin2(SIN2048_DATA);
+Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin3(SIN2048_DATA);
+Oscil<SIN2048_NUM_CELLS, AUDIO_RATE> aSin4(SIN2048_DATA);
 
 ADSR<CONTROL_RATE, AUDIO_RATE> env;
 
-RollingAverage <int, 16> distAvg;
+RollingAverage<int, 16> distAvg;
 
-
-int midiTable[5][4] = {
-  69, 72, 76, 79,
-  71, 74, 77, 81,
-  72, 76, 79, 83,
-  74, 77, 81, 84,
-  76, 79, 83, 86
-};
+// Note mapping, change it how you want
+int midiTable[5][4] = {69, 72, 76, 79, 71, 74, 77, 81, 72, 76,
+                       79, 83, 74, 77, 81, 84, 76, 79, 83, 86};
 
 float freqTable[5][4];
 
@@ -107,8 +116,6 @@ float freqTable[5][4];
 
 int duration;
 int dist;
-
-
 
 byte currentGain = 0;
 byte currentGain1 = 0;
@@ -130,33 +137,18 @@ int buttonValue4;
 */
 unsigned int cursorPosition = 0;
 bool menuChanged = false;
+// number of menu options
 const int noLevels = 7;
 
 const char menuStrings[noLevels][16] = {
-  "Guitarduino",
-  "Gain",
-  "Attack",
-  "Decay",
-  "Sustain",
-  "Release",
-  "Octave"
-};
+    "Guitarduino", "Gain", "Attack", "Decay", "Sustain", "Release", "Octave"};
 
-int* menuLevels[noLevels] = {
-  NULL,
-  &gain,
-  &ATTACK,
-  &DECAY,
-  &SUSTAIN,
-  &RELEASE,
-  &octaveShift
-};
+int* menuLevels[noLevels] = {NULL,     &gain,    &ATTACK,     &DECAY,
+                             &SUSTAIN, &RELEASE, &octaveShift};
 
 unsigned int mozziStartDelay = 100;
 unsigned long lastMenuUpdate;
 bool mozziStopped = false;
-
-
 
 void printMenu() {
   lcd.clear();
@@ -180,8 +172,6 @@ void printMenu() {
   lcd.setCursor(0, 0);
 
   lastMenuUpdate = millis();
-
-//  env.setTimes(2000, DECAY, SUSTAIN, 255);
 }
 
 bool xDown = true;
@@ -195,13 +185,11 @@ void controlMenu() {
     (*(menuLevels[cursorPosition]))++;
     menuChanged = true;
     xDown = true;
-  }
-  else if (xAxis < lowThreshold && cursorPosition && !xDown) {
+  } else if (xAxis < lowThreshold && cursorPosition && !xDown) {
     (*(menuLevels[cursorPosition]))--;
     menuChanged = true;
     xDown = true;
-  }
-  else if (xAxis > lowThreshold && xAxis < highThreshold) {
+  } else if (xAxis > lowThreshold && xAxis < highThreshold) {
     xDown = false;
   }
 
@@ -212,23 +200,19 @@ void controlMenu() {
     }
     menuChanged = true;
     yDown = true;
-  }
-  else if (yAxis < lowThreshold && !yDown) {
+  } else if (yAxis < lowThreshold && !yDown) {
     cursorPosition--;
     if (cursorPosition < 0) {
       cursorPosition = noLevels - 1;
     }
     menuChanged = true;
     yDown = true;
-  }
-  else if (yAxis > lowThreshold && yAxis < highThreshold) {
+  } else if (yAxis > lowThreshold && yAxis < highThreshold) {
     yDown = false;
   }
 }
 
 bool noteStopped = true;
-
-
 
 void setup() {
   startMozzi(CONTROL_RATE);
@@ -247,12 +231,6 @@ void setup() {
   pinMode(photoResistorPin3, INPUT);
   pinMode(photoResistorPin4, INPUT);
 
-  // TESTING ONLY
-//  pinMode(buttonPin1, INPUT_PULLUP);
-//  pinMode(buttonPin2, INPUT_PULLUP);
-//  pinMode(buttonPin3, INPUT_PULLUP);
-//  pinMode(buttonPin4, INPUT_PULLUP);
-
   // LCD
   lcd.begin(16, 2);
 
@@ -261,7 +239,6 @@ void setup() {
   printMenu();
 
   aSin.setFreq(440);
-  aSquare.setFreq(440);
 
   // CALCULATE MIDI -> FREQ
   for (int i = 0; i < 5; i++) {
@@ -270,159 +247,119 @@ void setup() {
     }
   }
 
-  env.setLevels(64, 52, 50, 0);
-  env.setTimes(50, DECAY, 3000, 300);
-//  env.setReleaseTime(2000);
-//  env.setAttackTime(1000);
-//  env.setSustainTime(500);
-//  env.setReleaseTime(3000);
+  env.setLevels(ATTACK_LEVEL, DECAY_LEVEL, SUSTAIN_LEVEL, RELEASE_LEVEL);
+  env.setTimes(ATTACK, DECAY, SUSTAIN, RELEASE);
 }
-
-
 
 void updateControl() {
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(100);
   digitalWrite(trigPin, LOW);
   duration = pulseIn(echoPin, HIGH);
-  dist = (duration/2) / 29.1;
+  dist = (duration / 2) / 29.1;
 
-//  Serial.println(dist);
-
-   buttonValue1 = mozziAnalogRead(photoResistorPin1);
+  buttonValue1 = mozziAnalogRead(photoResistorPin1);
   buttonValue2 = mozziAnalogRead(photoResistorPin2);
   buttonValue3 = mozziAnalogRead(photoResistorPin3);
   buttonValue4 = mozziAnalogRead(photoResistorPin4);
 
   env.update();
 
-  Serial.println(buttonValue3);
+  // check if strings are pressed
 
-  if (buttonValue1 < 850 && noteStopped) {
-    env.noteOn();
-    currentGain = 255;
-    noteStopped = false;
-
-  }
-
-  if (buttonValue2 < 850 && noteStopped) {
+  if (buttonValue1 < PHOTORES1_TOLERANCE && noteStopped) {
     env.noteOn();
     currentGain = 255;
     noteStopped = false;
   }
 
-//  if (buttonValue3 < 850 && noteStopped) {
-//    env.noteOn();
-//    currentGain = 255;
-//    noteStopped = false;
-//  }
-
-  if (buttonValue4 < 600 && noteStopped) {
+  if (buttonValue2 < PHOTORES2_TOLERANCE && noteStopped) {
     env.noteOn();
     currentGain = 255;
     noteStopped = false;
   }
 
-  if (buttonValue1 > 850 && buttonValue2 > 850 && buttonValue4 > 600) {
+  if (buttonValue3 < PHOTORES3_TOLERANCE && noteStopped) {
+    env.noteOn();
+    currentGain = 255;
+    noteStopped = false;
+  }
+
+  if (buttonValue4 < PHOTORES4_TOLERANCE && noteStopped) {
+    env.noteOn();
+    currentGain = 255;
+    noteStopped = false;
+  }
+
+  if (buttonValue1 > PHOTORES1_TOLERANCE &&
+      buttonValue2 > PHOTORES2_TOLERANCE &&
+      buttonValue3 > PHOTORES3_TOLERANCE &&
+      buttonValue4 > PHOTORES4_TOLERANCE) {
     env.noteOff();
     noteStopped = true;
-    
-   
   }
-
-  if (currentGain > 3) {
-      currentGain -= 4;
-    }
-    else {
-      currentGain = 0;
-    }
 
   xAxis = mozziAnalogRead(joyXPin);
   yAxis = mozziAnalogRead(joyYPin);
   sw = digitalRead(joySWPin);
-  
+
   dist = distAvg.next(dist);
 
-  if (dist <= 4 && (env.playing() || noteStopped)) {
+  if (dist <= PITCH_LIMIT1 && (env.playing() || noteStopped)) {
     // ROOT A4
     aSin.setFreq(freqTable[4][0]);
-    aSquare.setFreq(freqTable[0][0]);
-
     aSin2.setFreq(freqTable[4][1]);
     aSin3.setFreq(freqTable[4][2]);
     aSin4.setFreq(freqTable[4][3]);
-  }
-  else if (dist <= 7 && (env.playing() || noteStopped)) {
+  } else if (dist <= PITCH_LIMIT2 && (env.playing() || noteStopped)) {
     // ROOT B4
     aSin.setFreq(freqTable[3][0]);
-    aSquare.setFreq(freqTable[1][0]);
-
     aSin2.setFreq(freqTable[3][1]);
     aSin3.setFreq(freqTable[3][2]);
     aSin4.setFreq(freqTable[3][3]);
-  }
-  else if (dist <= 10 && (env.playing() || noteStopped)) {
+  } else if (dist <= PITCH_LIMIT3 && (env.playing() || noteStopped)) {
     // ROOT C4
     aSin.setFreq(freqTable[2][0]);
-    aSquare.setFreq(freqTable[2][0]);
-
     aSin2.setFreq(freqTable[2][1]);
     aSin3.setFreq(freqTable[2][2]);
     aSin4.setFreq(freqTable[2][3]);
-  }
-  else if (dist <= 13 && (env.playing() || noteStopped)) {
+  } else if (dist <= PITCH_LIMIT4 && (env.playing() || noteStopped)) {
     // ROOT D4
     aSin.setFreq(freqTable[1][0]);
-    aSquare.setFreq(freqTable[3][0]);
-
     aSin2.setFreq(freqTable[1][1]);
     aSin3.setFreq(freqTable[1][2]);
     aSin4.setFreq(freqTable[1][3]);
-  }
-  else if (dist <= 16 && (env.playing() || noteStopped)) {
+  } else if (dist <= PITCH_LIMIT5 && (env.playing() || noteStopped)) {
     // ROOT E4
     aSin.setFreq(freqTable[0][0]);
-    aSquare.setFreq(freqTable[4][0]);
-
     aSin2.setFreq(freqTable[0][1]);
     aSin3.setFreq(freqTable[0][2]);
     aSin4.setFreq(freqTable[0][3]);
   }
-
-  
- 
-
 }
 
 int updateAudio() {
-//  return ((int) aSin.next() * currentGain1) >> 8;
-//  return (((int) aSin.next()) * currentGain1)>>8;
-//      return (3*((long)aSin.next() * currentGain1 + aSin2.next() * currentGain2 +((aSin3.next() * currentGain3)>>1)
-//    +((aSin4.next() * currentGain4)>>2)) >>3)>>8;
-
   int currentSample = 0;
 
-  if (buttonValue1 < 850) {
+  // this should be polyphonic but 8bit and arduino processing is not good
+  // enough
+  if (buttonValue1 < PHOTORES1_TOLERANCE) {
     currentSample += aSin.next();
-  }
-  else if (buttonValue2 < 850) {
+  } else if (buttonValue2 < PHOTORES2_TOLERANCE) {
     currentSample += aSin2.next();
-  }
-  else if (buttonValue3 < 850) {
+  } else if (buttonValue3 < PHOTORES3_TOLERANCE) {
     currentSample += aSin3.next();
-  }
-  else if (buttonValue4 < 850) {
+  } else if (buttonValue4 < PHOTORES4_TOLERANCE) {
     currentSample += aSin4.next();
   }
-  
+
   currentSample *= env.next();
 
-  return (((int) currentSample>>6));
+  // shift to the right so it fits in the 8 bit audio output
+  return (((int)currentSample >> 6));
 }
 
 void loop() {
-  
-
   controlMenu();
 
   if (menuChanged) {
@@ -432,6 +369,6 @@ void loop() {
     menuChanged = false;
     startMozzi(CONTROL_RATE);
   }
-  
+
   audioHook();
 }
